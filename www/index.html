@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fox Wetter</title>
+<style>
+:root{--bg:#eaf3fb;--card:#fff;--text:#16324a;--muted:#5d7488;--accent:#2f80d1;--chip:#d6e7f7;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1a26;--card:#172737;--text:#e6f0f8;--muted:#8fa6ba;--accent:#5aa9f0;--chip:#223a50;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+main{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 4px 12px}
+.search{display:flex;gap:8px;position:relative}
+.search input{flex:1;border:0;border-radius:14px;padding:14px;font-size:16px;background:var(--card);color:var(--text);outline:none}
+.search button{border:0;border-radius:14px;padding:0 18px;background:var(--accent);color:#fff;font-size:16px}
+.sug{position:absolute;top:52px;left:0;right:0;background:var(--card);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:5;overflow:hidden}
+.sug div{padding:12px 14px;border-bottom:1px solid var(--chip);cursor:pointer}
+.sug div:last-child{border:0}
+.sug small{color:var(--muted)}
+.hero{background:var(--card);border-radius:24px;padding:24px;text-align:center;margin-top:12px}
+.ico{font-size:72px;line-height:1}
+.temp{font-size:64px;font-weight:300;margin:4px 0}
+.desc{color:var(--muted);font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.grid div{background:var(--chip);border-radius:14px;padding:10px 4px;font-size:13px;color:var(--muted)}
+.grid b{display:block;font-size:17px;color:var(--text);margin-top:2px}
+h2{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:20px 4px 8px}
+.days{background:var(--card);border-radius:20px;padding:4px 16px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--chip)}
+.row:last-child{border:0}
+.n{width:44px;font-weight:600}
+.e{font-size:24px;width:32px}
+.s{flex:1;color:var(--muted);font-size:14px}
+.m{color:var(--muted)}
+.m b{color:var(--text)}
+.msg{text-align:center;color:var(--muted);padding:32px 8px}
+.note{font-size:12px;color:var(--muted);text-align:center;margin:16px 8px}
+</style>
+</head>
+<body>
+<main>
+<h1>🦊 Fox Wetter</h1>
+<div class="search">
+<input id="q" type="search" placeholder="Ort suchen …" autocomplete="off" enterkeyhint="search">
+<button id="go">Suchen</button>
+<div class="sug" id="sug" hidden></div>
+</div>
+<div id="out"><div class="msg">Lade …</div></div>
+<p class="note">Daten: Open-Meteo.com</p>
+</main>
+<script>
+var CODES={0:["☀️","Klar"],1:["🌤️","Überwiegend klar"],2:["⛅","Teils bewölkt"],3:["☁️","Bedeckt"],45:["🌫️","Nebel"],48:["🌫️","Reifnebel"],51:["🌦️","Leichter Niesel"],53:["🌦️","Niesel"],55:["🌦️","Starker Niesel"],56:["🌧️","Gefrierender Niesel"],57:["🌧️","Gefrierender Niesel"],61:["🌧️","Leichter Regen"],63:["🌧️","Regen"],65:["🌧️","Starker Regen"],66:["🌧️","Gefrierender Regen"],67:["🌧️","Gefrierender Regen"],71:["🌨️","Leichter Schneefall"],73:["🌨️","Schneefall"],75:["❄️","Starker Schneefall"],77:["❄️","Schneegriesel"],80:["🌦️","Leichte Schauer"],81:["🌦️","Schauer"],82:["⛈️","Heftige Schauer"],85:["🌨️","Schneeschauer"],86:["🌨️","Schneeschauer"],95:["⛈️","Gewitter"],96:["⛈️","Gewitter mit Hagel"],99:["⛈️","Gewitter mit Hagel"]};
+var DEFAULT={name:"Berlin",lat:52.52,lon:13.41};
+function $(id){return document.getElementById(id)}
+function code(c){return CODES[c]||["❓","Unbekannt"]}
+function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+
+function load(place){
+  try{localStorage.setItem("wetter_place",JSON.stringify(place))}catch(e){}
+  $("out").innerHTML='<div class="msg">Lade …</div>';
+  var url="https://api.open-meteo.com/v1/forecast?latitude="+place.lat+"&longitude="+place.lon+
+    "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m"+
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7";
+  fetch(url).then(function(r){return r.json()}).then(function(d){
+    var c=d.current,k=code(c.weather_code),h="";
+    h+='<section class="hero"><div class="ico">'+k[0]+'</div><div class="temp">'+Math.round(c.temperature_2m)+'°</div>'+
+       '<div class="desc">'+esc(place.name)+' · '+k[1]+'</div><div class="grid">'+
+       '<div>Gefühlt<b>'+Math.round(c.apparent_temperature)+'°</b></div>'+
+       '<div>Wind<b>'+Math.round(c.wind_speed_10m)+' km/h</b></div>'+
+       '<div>Feuchte<b>'+c.relative_humidity_2m+' %</b></div></div></section>';
+    h+='<h2>7-Tage-Vorhersage</h2><section class="days">';
+    d.daily.time.forEach(function(t,i){
+      var dk=code(d.daily.weather_code[i]);
+      var day=i===0?"Heute":new Date(t+"T12:00:00").toLocaleDateString("de-DE",{weekday:"short"});
+      h+='<div class="row"><span class="n">'+day+'</span><span class="e">'+dk[0]+'</span><span class="s">'+dk[1]+
+         '</span><span class="m">'+Math.round(d.daily.temperature_2m_min[i])+'° / <b>'+Math.round(d.daily.temperature_2m_max[i])+'°</b></span></div>';
+    });
+    $("out").innerHTML=h+'</section>';
+  }).catch(function(){
+    $("out").innerHTML='<div class="msg">Wetterdaten konnten nicht geladen werden. Bitte Internetverbindung prüfen.</div>';
+  });
+}
+
+function search(){
+  var q=$("q").value.trim();
+  if(!q)return;
+  fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(q)+"&count=5&language=de")
+  .then(function(r){return r.json()}).then(function(d){
+    var s=$("sug");
+    if(!d.results||!d.results.length){s.innerHTML='<div>Kein Ort gefunden</div>';s.hidden=false;return}
+    s.innerHTML="";
+    d.results.forEach(function(p){
+      var el=document.createElement("div");
+      el.innerHTML=esc(p.name)+' <small>'+esc([p.admin1,p.country].filter(Boolean).join(", "))+'</small>';
+      el.onclick=function(){
+        s.hidden=true;$("q").value="";
+        load({name:p.name,lat:p.latitude,lon:p.longitude});
+      };
+      s.appendChild(el);
+    });
+    s.hidden=false;
+  }).catch(function(){});
+}
+
+$("go").onclick=search;
+$("q").addEventListener("keydown",function(e){if(e.key==="Enter")search()});
+document.addEventListener("click",function(e){if(!e.target.closest(".search"))$("sug").hidden=true});
+
+var saved=DEFAULT;
+try{var s=localStorage.getItem("wetter_place");if(s)saved=JSON.parse(s)}catch(e){}
+load(saved);
+</script>
+</body>
+</html>
