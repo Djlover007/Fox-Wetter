@@ -37,6 +37,9 @@ h2{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05
 .m{color:var(--muted)}
 .m b{color:var(--text)}
 .more{display:block;margin:16px 0 0;padding:12px;border-radius:14px;background:var(--accent);color:#fff;text-decoration:none;font-size:16px}
+.upd{display:flex;align-items:center;gap:10px;margin:12px 0 0;padding:12px 14px;border-radius:14px;background:var(--accent);color:#fff}
+.upd span{flex:1}
+.upd a{background:#fff;color:var(--accent);padding:8px 12px;border-radius:10px;text-decoration:none;font-weight:600}
 .msg{text-align:center;color:var(--muted);padding:32px 8px}
 .note{font-size:12px;color:var(--muted);text-align:center;margin:16px 8px}
 </style>
@@ -44,6 +47,7 @@ h2{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05
 <body>
 <main>
 <h1>🦊 Fox Wetter</h1>
+<div id="upd" class="upd" hidden><span>Neue Version verfügbar</span><a id="updlink" target="_blank" rel="noopener" href="#">Aktualisieren</a></div>
 <div class="search">
 <input id="q" type="search" placeholder="PLZ oder Ort …" autocomplete="off" enterkeyhint="search">
 <select id="cc"><option value="DE">DE</option><option value="AT">AT</option><option value="CH">CH</option><option value="">Alle</option></select>
@@ -53,7 +57,9 @@ h2{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05
 <div id="out"><div class="msg">Lade …</div></div>
 <p class="note">Daten: Open-Meteo.com</p>
 </main>
+<script src="version.js"></script>
 <script>
+var REPO="Djlover007/Fox-Wetter";
 var CODES={0:["☀️","Klar"],1:["🌤️","Überwiegend klar"],2:["⛅","Teils bewölkt"],3:["☁️","Bedeckt"],45:["🌫️","Nebel"],48:["🌫️","Reifnebel"],51:["🌦️","Leichter Niesel"],53:["🌦️","Niesel"],55:["🌦️","Starker Niesel"],56:["🌧️","Gefrierender Niesel"],57:["🌧️","Gefrierender Niesel"],61:["🌧️","Leichter Regen"],63:["🌧️","Regen"],65:["🌧️","Starker Regen"],66:["🌧️","Gefrierender Regen"],67:["🌧️","Gefrierender Regen"],71:["🌨️","Leichter Schneefall"],73:["🌨️","Schneefall"],75:["❄️","Starker Schneefall"],77:["❄️","Schneegriesel"],80:["🌦️","Leichte Schauer"],81:["🌦️","Schauer"],82:["⛈️","Heftige Schauer"],85:["🌨️","Schneeschauer"],86:["🌨️","Schneeschauer"],95:["⛈️","Gewitter"],96:["⛈️","Gewitter mit Hagel"],99:["⛈️","Gewitter mit Hagel"]};
 var DEFAULT={name:"Berlin",lat:52.52,lon:13.41};
 function $(id){return document.getElementById(id)}
@@ -144,6 +150,21 @@ function search(){
 $("go").onclick=search;
 $("q").addEventListener("keydown",function(e){if(e.key==="Enter")search()});
 document.addEventListener("click",function(e){if(!e.target.closest(".search"))$("sug").hidden=true});
+
+function checkUpdate(){
+  var cur=window.APP_BUILD||0;
+  if(!cur)return;
+  fetch("https://api.github.com/repos/"+REPO+"/releases/latest").then(function(r){return r.ok?r.json():null}).then(function(d){
+    if(!d||!d.tag_name)return;
+    var n=parseInt(String(d.tag_name).replace(/\D/g,""),10);
+    if(n>cur){
+      var a=(d.assets||[]).filter(function(x){return /\.apk$/i.test(x.name)})[0];
+      $("updlink").href=a?a.browser_download_url:d.html_url;
+      $("upd").hidden=false;
+    }
+  }).catch(function(){});
+}
+checkUpdate();
 
 var saved=DEFAULT;
 try{var s=localStorage.getItem("wetter_place");if(s)saved=JSON.parse(s)}catch(e){}

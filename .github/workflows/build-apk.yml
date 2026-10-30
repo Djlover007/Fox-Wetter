@@ -1,9 +1,12 @@
-name: APK bauen
+name: APK bauen und veröffentlichen
 
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -20,6 +23,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Build-Nummer in die App schreiben
+        run: echo "window.APP_BUILD = ${{ github.run_number }};" > www/version.js
+
       - name: Abhängigkeiten installieren
         run: npm install
 
@@ -29,12 +35,31 @@ jobs:
           npx capacitor-assets generate --android
           npx cap sync android
 
-      - name: Debug-APK bauen
+      - name: Version und feste Signatur eintragen
+        run: |
+          GRADLE=android/app/build.gradle
+          grep -q "versionCode 1" "$GRADLE" || { echo "versionCode nicht gefunden"; exit 1; }
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" "$GRADLE"
+          sed -i 's/versionName "1.0"/versionName "1.${{ github.run_number }}"/' "$GRADLE"
+          cp fox-wetter.keystore android/fox-wetter.keystore
+          cat signing.gradle >> "$GRADLE"
+
+      - name: APK bauen
         working-directory: android
         run: ./gradlew assembleDebug
 
-      - name: APK hochladen
+      - name: APK umbenennen
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Fox-Wetter.apk
+
+      - name: Release veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Fox Wetter ${{ github.run_number }}
+          files: Fox-Wetter.apk
+
+      - name: APK auch als Artifact ablegen
         uses: actions/upload-artifact@v4
         with:
           name: wetter-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Fox-Wetter.apk

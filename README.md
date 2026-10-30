@@ -2,11 +2,13 @@
 
 Live-Wetter mit PLZ- und Ortssuche (Open-Meteo, Zippopotam; kein API-Key nötig).
 
-## APK über GitHub bauen
-1. Neues Repository auf github.com anlegen und alle Dateien dieses Ordners hochladen (inkl. `.github` und `assets`).
-2. Tab **Actions** öffnen. Der Workflow „APK bauen" startet automatisch (oder manuell über „Run workflow").
-3. Nach ca. 5 Minuten im fertigen Lauf unter **Artifacts** `wetter-apk` herunterladen, entpacken.
-4. `app-debug.apk` aufs Handy kopieren und installieren (Installation aus unbekannten Quellen erlauben).
+## APK und automatische Updates
+Bei jedem Upload auf `main` baut GitHub Actions die App und veröffentlicht sie als **Release**.
+
+- Neueste APK immer hier: `https://github.com/Djlover007/Fox-Wetter/releases/latest/download/Fox-Wetter.apk`
+- Die App prüft beim Start, ob ein neueres Release existiert, und zeigt dann oben ein Banner „Neue Version verfügbar". Ein Tipp auf „Aktualisieren" lädt die APK, danach installieren.
+- Damit die App Updates findet, muss das Repository **öffentlich** sein (Settings → General → Danger Zone → Change visibility).
+- Alle Versionen sind mit demselben Schlüssel (`fox-wetter.keystore`) signiert, deshalb lässt sich jede neue APK einfach über die alte installieren.
 
 ## Lokal testen
 `www/index.html` einfach im Browser öffnen.
