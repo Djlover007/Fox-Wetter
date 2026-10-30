@@ -87,26 +87,58 @@ function load(place){
   });
 }
 
+function showResults(list){
+  var s=$("sug");
+  s.innerHTML="";
+  if(!list.length){s.innerHTML='<div>Kein Ort gefunden</div>';s.hidden=false;return}
+  list.forEach(function(p){
+    var el=document.createElement("div");
+    el.innerHTML=esc(p.label)+' <small>'+esc(p.sub)+'</small>';
+    el.onclick=function(){s.hidden=true;$("q").value="";load({name:p.name,lat:p.lat,lon:p.lon})};
+    s.appendChild(el);
+  });
+  s.hidden=false;
+}
+
+function searchPlz(plz){
+  var cc=$("cc").value;
+  var countries=cc?[cc]:["DE","AT","CH"];
+  return Promise.all(countries.map(function(c){
+    return fetch("https://api.zippopotam.us/"+c.toLowerCase()+"/"+encodeURIComponent(plz))
+      .then(function(r){return r.ok?r.json():null}).catch(function(){return null});
+  })).then(function(res){
+    var out=[];
+    res.forEach(function(d){
+      if(!d||!d.places)return;
+      d.places.forEach(function(p){
+        out.push({label:d["post code"]+" "+p["place name"],name:p["place name"],
+          sub:[p.state,d["country abbreviation"]].filter(Boolean).join(", "),
+          lat:parseFloat(p.latitude),lon:parseFloat(p.longitude)});
+      });
+    });
+    return out;
+  });
+}
+
+function searchName(q){
+  return fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(q)+"&count=8&language=de"+($("cc").value?"&countryCode="+$("cc").value:""))
+  .then(function(r){return r.json()}).then(function(d){
+    return (d.results||[]).map(function(p){
+      var plz=p.postcodes&&p.postcodes.length?p.postcodes[0]+" ":"";
+      return {label:plz+p.name,name:p.name,sub:[p.admin1,p.country].filter(Boolean).join(", "),lat:p.latitude,lon:p.longitude};
+    });
+  }).catch(function(){return []});
+}
+
 function search(){
   var q=$("q").value.trim();
   if(!q)return;
-  fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(q)+"&count=8&language=de"+($("cc").value?"&countryCode="+$("cc").value:""))
-  .then(function(r){return r.json()}).then(function(d){
-    var s=$("sug");
-    if(!d.results||!d.results.length){s.innerHTML='<div>Kein Ort gefunden</div>';s.hidden=false;return}
-    s.innerHTML="";
-    d.results.forEach(function(p){
-      var el=document.createElement("div");
-      var plz=p.postcodes&&p.postcodes.length?p.postcodes[0]+" ":"";
-      el.innerHTML=esc(plz+p.name)+' <small>'+esc([p.admin1,p.country].filter(Boolean).join(", "))+'</small>';
-      el.onclick=function(){
-        s.hidden=true;$("q").value="";
-        load({name:p.name,lat:p.latitude,lon:p.longitude});
-      };
-      s.appendChild(el);
-    });
-    s.hidden=false;
-  }).catch(function(){});
+  var isPlz=/^\d{4,5}$/.test(q);
+  var first=isPlz?searchPlz(q):searchName(q);
+  first.then(function(list){
+    if(list.length||!isPlz)return list;
+    return searchName(q);
+  }).then(showResults);
 }
 
 $("go").onclick=search;
